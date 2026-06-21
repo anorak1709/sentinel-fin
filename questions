@@ -1,0 +1,7 @@
+Q1 - Why low precision is acceptable here
+    PR-AUC ≥ 0.65 on holdout (the IEEE-CIS public leaderboard's strong baselines sit ~0.70 PR-AUC; ≥0.65 is honest and defensible)
+
+q2 - what is not being built here is very important 
+Not a SIEM tool
+Can not connect to a real banking API integration as a student plus every banking system has their own adapters and sockets
+
