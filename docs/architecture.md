@@ -35,7 +35,9 @@ The system has **three core components** plus a thin integration layer.
 
 - **Input:** A single transaction event as JSON, containing transaction features (amount, card type, merchant category, time-of-day, device ID, billing/shipping address hash, email domain) and identity features (account age, prior transaction count, behavioural baselines).
 - **Output:** A JSON response containing `fraud_probability` (float 0–1), `risk_tier` (LOW / MEDIUM / HIGH / CRITICAL based on tuned thresholds), `top_shap_features` (list of 5 features with signed contributions), `model_version`, and `scoring_latency_ms`.
-- **Brief description:** An XGBoost classifier (primary model) ensembled with an Isolation Forest (anomaly score for out-of-distribution behaviour) is wrapped behind a FastAPI endpoint. The XGBoost model is trained on the IEEE-CIS Fraud Detection dataset with class-imbalance handling (`scale_pos_weight`) and PR-AUC as the primary tuning metric. SHAP TreeExplainer generates per-prediction explanations on the fly. The model is loaded once at service start (`joblib`) and held in memory.
+- **Brief description:** An XGBoost classifier wrapped behind a FastAPI endpoint, trained on the IEEE-CIS Fraud Detection dataset with class-imbalance handling (`scale_pos_weight`) and PR-AUC as the primary tuning metric. SHAP TreeExplainer generates per-prediction explanations on the fly. The model is loaded once at service start (`joblib`) and held in memory.
+
+  **Architectural change (Week 7):** The original design called for an XGBoost + Isolation Forest ensemble. After empirical evaluation, Isolation Forest achieved PR-AUC 0.095 standalone (vs 0.552 for XGBoost), and a weighted ensemble (0.75/0.25) reduced overall PR-AUC to 0.541 — below XGBoost alone. The Isolation Forest contributed orthogonal information in ROC-AUC space (ensemble 0.890 vs XGBoost 0.874) but did not improve precision at operationally useful thresholds. The component was removed from the production scoring path. The training code remains in `ml/notebooks/03_modeling.ipynb` for reproducibility and to document the negative finding.
 
 ### 3.2 Security Telemetry & Correlation Engine
 
@@ -78,7 +80,7 @@ A single end-to-end trace, the kind of thing the demo video will show.
 
 | Layer | Choice | Why |
 |---|---|---|
-| ML model | XGBoost + Isolation Forest, SHAP TreeExplainer | XGBoost is the industry default for tabular fraud, SHAP is the gold standard for interpretability under model risk reviews |
+| ML model | XGBoost (2000 trees, max_depth=8, scale_pos_weight), SHAP TreeExplainer | XGBoost is the industry default for tabular fraud, SHAP is the gold standard for interpretability under model risk reviews. Isolation Forest was tested and removed — see §3.1. |
 | ML serving | FastAPI + uvicorn | Fast, async, auto-OpenAPI docs, recruiter-friendly |
 | SIEM | Out of scope (custom correlation engine consumes raw auth events) | Deliberate scoping decision — see §7. A production deployment would place Wazuh / Splunk / Elastic upstream of the correlation engine. |
 | Correlation engine | Custom Python (rules + MITRE mapping) | A real fraud team builds custom logic here because off-the-shelf rules can't encode bank-specific patterns |
@@ -94,7 +96,9 @@ A single end-to-end trace, the kind of thing the demo video will show.
 
 ### 6.1 ML model targets
 
-- **Primary:** PR-AUC ≥ 0.65 on holdout (the IEEE-CIS public leaderboard's strong baselines sit ~0.70 PR-AUC; ≥0.65 is honest and defensible)
+- **Original target:** PR-AUC ≥ 0.65 (architecture v0.1)
+- **Achieved:** PR-AUC **0.552** on the temporal holdout — below target. Strong IEEE-CIS leaderboard baselines reach ~0.65–0.75 but involve weeks of target-encoding feature work beyond the scope of a 2-week capstone. The achieved metric is sufficient for the downstream system demonstration (alert correlation, MITRE mapping, SHAP explainability) to function meaningfully.
+- **ROC-AUC:** 0.874 (well above 0.5 random baseline)
 - **Recall at fixed precision:** ≥0.55 recall at 0.30 precision — meaning when the model says "fraud" it's right 30% of the time, and it catches 55% of all fraud. Low precision is acceptable for fraud because alerts are human-reviewed, not auto-blocked.
 - **Scoring latency:** p95 < 100ms on a 4-core laptop, matching typical real-time fraud SLAs
 - **Calibration:** Brier score < 0.05 — the predicted probabilities should actually mean something, not just rank
