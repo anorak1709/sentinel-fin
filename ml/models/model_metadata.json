@@ -4,22 +4,22 @@
   "trained_on_rows": 472432,
   "test_rows": 118108,
   "scale_pos_weight": 27.46147358274595,
-  "best_iteration": 1994,
-  "chosen_threshold": 0.14251123368740082,
+  "best_iteration": 1486,
+  "chosen_threshold": 0.20552901923656464,
   "risk_tiers": {
     "LOW": 0.0,
-    "MEDIUM": 0.07125561684370041,
-    "HIGH": 0.14251123368740082,
-    "CRITICAL": 0.28502246737480164
+    "MEDIUM": 0.10276450961828232,
+    "HIGH": 0.20552901923656464,
+    "CRITICAL": 0.4110580384731293
   },
   "metrics": {
     "xgboost": {
-      "pr_auc": 0.5516346772841592,
-      "roc_auc": 0.873808556622848
+      "pr_auc": 0.5599627381775841,
+      "roc_auc": 0.894855283787415
     },
     "logistic_baseline": {
-      "pr_auc": 0.1951725786894043,
-      "roc_auc": 0.8494023049571695
+      "pr_auc": 0.18931738825635452,
+      "roc_auc": 0.845179790739698
     },
     "isolation_forest_rejected": {
       "pr_auc": 0.0953,
