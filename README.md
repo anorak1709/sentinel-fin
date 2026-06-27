@@ -44,18 +44,6 @@ Sentinel-Fin demonstrates the full pipeline:
 
 ---
 
-## Demo
-
-> *(Demo video and live deployment link will go here once recorded/deployed.)*
-
-**Dashboard screenshot** — the alert queue and detail view:
-
-![Alert Queue](docs/screenshots/01_alert_queue.png)
-![Alert Detail](docs/screenshots/02_alert_detail.png)
-![Model Performance](docs/screenshots/03_model_performance.png)
-
----
-
 ## Architecture
 
 ```
