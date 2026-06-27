@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import Any
+import os
 
 import httpx
 import streamlit as st
 
-
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 TIMEOUT = 10.0
 
 
