@@ -1,6 +1,7 @@
 data/raw/
 data/processed/
-data/logs/
+data/logs/*
+!data/logs/correlation_alerts.jsonl
 .venv/
 __pycache__/
 *.pyc
