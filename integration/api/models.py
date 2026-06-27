@@ -64,3 +64,51 @@ class ModelInfoResponse(BaseModel):
     best_iteration: int
     metrics: dict[str, Any]
     risk_tiers: dict[str, float]
+
+# Add at the bottom of the existing file
+
+class AlertListItem(BaseModel):
+    """Single alert as returned by /alerts (queue view — abbreviated)."""
+    transaction_id: str
+    user_id: str
+    timestamp: str
+    final_risk_tier: str
+    combined_risk_score: float
+    ml_fraud_probability: float
+    correlation_boost: float
+    mitre_techniques: list[str]
+    matched_rule_names: list[str]
+    transaction_amount_inr: float | None = None
+
+
+class AlertListResponse(BaseModel):
+    alerts: list[AlertListItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class AlertDetailResponse(BaseModel):
+    """Full alert payload (detail view) — same shape as correlation_alerts.jsonl rows."""
+    transaction_id: str
+    user_id: str
+    timestamp: str
+    ml_fraud_probability: float
+    ml_risk_tier: str
+    correlation_boost: float
+    combined_risk_score: float
+    final_risk_tier: str
+    matched_rules: list[dict[str, Any]]
+    mitre_techniques: list[str]
+    transaction: dict[str, Any]
+    suggested_action: str
+
+
+class StatsResponse(BaseModel):
+    total: int
+    by_tier: dict[str, int] = {}
+    by_rule: dict[str, int] = {}
+    by_mitre: dict[str, int] = {}
+    rules_per_alert: dict[str, int] = {}
+    score_distribution: dict[str, int] = {}
+    by_hour: dict[str, int] = {}
