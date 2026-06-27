@@ -8,3 +8,4 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 ml/models/shap_explainer.joblib
+ml/models/isolation_forest.joblib

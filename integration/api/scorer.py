@@ -32,12 +32,14 @@ class FraudScorer:
     def load(self) -> None:
         """Load all artifacts from disk. Called once at app startup."""
         self.model = joblib.load(self.artifacts_dir / "xgboost_model.joblib")
-        self.explainer = joblib.load(self.artifacts_dir / "shap_explainer.joblib")
         self.category_maps = joblib.load(self.artifacts_dir / "category_maps.joblib")
         with open(self.artifacts_dir / "model_metadata.json") as f:
             self.metadata = json.load(f)
         self.feature_columns = self.metadata["feature_columns"]
         self.risk_tiers = self.metadata["risk_tiers"]
+
+        # Build SHAP explainer from the loaded model — avoids needing a 60MB artifact file
+        self.explainer = shap.TreeExplainer(self.model)
 
     def _encode_features(self, features: dict[str, Any]) -> pd.DataFrame:
         """
