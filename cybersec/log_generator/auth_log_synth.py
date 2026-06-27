@@ -21,7 +21,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterator
 
-from faker import Faker    #Faker is used for generating realistic IP addresses, user agents, etc. 
+from faker import Faker
+from streamlit import user    #Faker is used for generating realistic IP addresses, user agents, etc. 
 
 fake = Faker("en_IN") # "en_IN" locale gives us more India-specific data, which is our target demographic for this simulation.
 random.seed(42) # Seeding the random number generator for reproducibility. This ensures that every run of this script produces the same synthetic dataset, which is important for consistent evaluation.
@@ -170,7 +171,14 @@ def gen_ato_attack_chain(
     user: UserProfile, attack_time: datetime
 ) -> list[tuple[str, AuthEvent | TransactionEvent]]:
     """
-    Inject a realistic Account Takeover chain:
+    Inject a realistic Account Takeover chain.
+
+    Updated to include a 'legitimate prior session' from the user's home city
+    a few minutes before the attack. This creates the impossible-travel signal
+    that the correlation engine's rule_impossible_travel was designed to catch.
+
+    Stages:
+      0. Legitimate prior session from home city (3-8 min before attack)
       1. Burst of 5-8 failed logins from a foreign IP (brute force / cred stuffing)
       2. One successful login from the same foreign IP using a NEW device
       3. A high-value transfer to a brand-new payee within 5 minutes of login
@@ -182,7 +190,23 @@ def gen_ato_attack_chain(
 
     events: list[tuple[str, AuthEvent | TransactionEvent]] = []
 
-    # Brute-force burst (MITRE T1110 - Brute Force: The time between failed attempts is short, indicating an automated attack trying many passwords in quick succession.)
+    # Stage 0 — legitimate prior session (creates impossible-travel signal)
+    legit_time = attack_time - timedelta(minutes=random.randint(3, 8))
+    events.append(("auth", AuthEvent(
+        event_id=str(uuid.uuid4()),
+        timestamp=legit_time.isoformat(),
+        user_id=user.user_id,
+        event_type="login_success",
+        ip_address=fake.ipv4_public(),
+        city=user.home_city[0],
+        country=user.home_city[1],
+        latitude=user.home_city[2] + random.uniform(-0.05, 0.05),
+        longitude=user.home_city[3] + random.uniform(-0.05, 0.05),
+        device_fingerprint=user.primary_device,
+        user_agent=fake.user_agent(),
+    )))
+
+    # Stage 1 — brute-force burst (MITRE T1110)
     n_failures = random.randint(5, 8)
     for i in range(n_failures):
         ts = attack_time + timedelta(seconds=i * random.randint(8, 25))
@@ -200,7 +224,7 @@ def gen_ato_attack_chain(
             user_agent=fake.user_agent(),
         )))
 
-    # Successful breach(MITRE T1078 - Valid Accounts: The attacker successfully logs in using valid credentials, which may have been obtained through the brute-force attack or from a previous data breach. The login is from a new device and a foreign location, which are strong indicators of compromise.)
+    # Stage 2 — successful breach (MITRE T1078)
     success_time = attack_time + timedelta(seconds=n_failures * 20 + 5)
     events.append(("auth", AuthEvent(
         event_id=str(uuid.uuid4()),
@@ -216,7 +240,7 @@ def gen_ato_attack_chain(
         user_agent=fake.user_agent(),
     )))
 
-    # High-value transfer to new payee (MITRE T1110 + T1078: The attacker, having gained access to the account, initiates a high-value transaction to a new payee. This action is consistent with the objectives of an account takeover attack, where the attacker seeks to quickly extract value from the compromised account. The transaction occurs shortly after the successful login, indicating that the attacker is acting swiftly to avoid detection.)
+    # Stage 3 — high-value transfer to a new payee (the cash-out)
     txn_time = success_time + timedelta(seconds=random.randint(60, 240))
     high_amount = user.typical_amount_range[1] * random.uniform(3, 8)
     events.append(("txn", TransactionEvent(
@@ -249,9 +273,9 @@ def main() -> None:
         for user in users:
             for kind, event in gen_normal_events(user, day_start):
                 if kind == "auth":
-                    auth_events.append(event)
+                    auth_events.append(event)#type: ignore
                 else:
-                    txn_events.append(event)
+                    txn_events.append(event)#type: ignore
 
     print(f"Generated {len(auth_events)} normal auth events")
     print(f"Generated {len(txn_events)} normal transactions")
@@ -269,9 +293,9 @@ def main() -> None:
         chain = gen_ato_attack_chain(user, attack_time)
         for kind, event in chain:
             if kind == "auth":
-                auth_events.append(event)
+                auth_events.append(event) # type: ignore
             else:
-                txn_events.append(event)
+                txn_events.append(event) # type: ignore
                 # The transaction in an attack chain is our ground-truth fraud label
                 attack_labels.append({
                     "transaction_id": event.event_id,

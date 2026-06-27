@@ -67,12 +67,12 @@ class FraudScorer:
                 if is_missing:
                     encoded = mapping.get("__missing__", len(mapping))
                 else:
-                    encoded = mapping.get(val)
+                    encoded = mapping.get(val) # type: ignore
                     if encoded is None:
                         encoded = mapping.get(str(val))
                     if encoded is None:
                         try:
-                            encoded = mapping.get(int(float(val)))
+                            encoded = mapping.get(int(float(val)))  #type: ignore
                         except (ValueError, TypeError):
                             encoded = None
                     if encoded is None:
